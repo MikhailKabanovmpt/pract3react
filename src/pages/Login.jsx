@@ -1,0 +1,92 @@
+
+import { useState, useContext } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { AuthContext } from '../contexts/AuthContext';
+
+export default function Login() {
+  const { login, loading } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const [form, setForm]     = useState({ email: '', password: '' });
+  const [errors, setErrors] = useState({});
+  const [serverErr, setServerErr] = useState('');
+
+  const validate = () => {
+    const e = {};
+    if (!form.email) e.email = 'Email обязателен';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      e.email = 'Введите корректный email';
+    if (!form.password) e.password = 'Пароль обязателен';
+    else if (form.password.length < 6)
+      e.password = 'Минимум 6 символов';
+    return e;
+  };
+
+  const handleSubmit = async () => {
+    setServerErr('');
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    try {
+      await login(form.email, form.password);
+      navigate('/');
+    } catch (err) {
+      setServerErr(err.message);
+    }
+  };
+
+  const set = (key) => (e) => {
+    setForm(prev => ({ ...prev, [key]: e.target.value }));
+    setErrors(prev => ({ ...prev, [key]: '' }));
+  };
+
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <h2>👋 Вход</h2>
+        <p className="subtitle">Войдите в свой аккаунт КотоМаркет</p>
+
+        {serverErr && (
+          <div className="form-server-error">{serverErr}</div>
+        )}
+
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={set('email')}
+            className={errors.email ? 'error' : ''}
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          />
+          {errors.email && <div className="form-error">{errors.email}</div>}
+        </div>
+
+        <div className="form-group">
+          <label>Пароль</label>
+          <input
+            type="password"
+            placeholder="••••••••"
+            value={form.password}
+            onChange={set('password')}
+            className={errors.password ? 'error' : ''}
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          />
+          {errors.password && <div className="form-error">{errors.password}</div>}
+        </div>
+
+        <button
+          className="form-submit"
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? 'Входим...' : 'Войти'}
+        </button>
+
+        <div className="auth-switch">
+          Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
