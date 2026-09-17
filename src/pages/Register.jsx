@@ -1,93 +1,95 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { register } from '../api';
 
 export default function Register() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
+  const [form, setForm]     = useState({ email: '', password: '' });
+  const [errors, setErrors] = useState({});
+  const [serverErr, setServerErr] = useState('');
+  const [loading, setLoading]     = useState(false);
 
-        if (!email || !password) {
-            setError('Пожалуйста, заполните все поля');
-            return;
-        }
-if (password.length < 6) {
-            setError('Пароль должен содержать минимум 6 символов');
-            return;
-        }
-        setLoading(true);
-        try {
-            const response = await fetch('http://localhost:3001/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+  const validate = () => {
+    const e = {};
+    if (!form.email) e.email = 'Email обязателен';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      e.email = 'Введите корректный email';
+    if (!form.password) e.password = 'Пароль обязателен';
+    else if (form.password.length < 6)
+      e.password = 'Минимум 6 символов';
+    return e;
+  };
 
-            const data = await response.json();
+  const handleSubmit = async () => {
+    setServerErr('');
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Ошибка при регистрации');
-            }
+    setLoading(true);
+    try {
+      await register({ email: form.email, password: form.password });
+      navigate('/login');
+    } catch (err) {
+      setServerErr(err.response?.data?.error || 'Ошибка при регистрации');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            alert('Регистрация прошла успешно! Теперь вы можете войти.');
-            navigate('/login');
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+  const set = (key) => (e) => {
+    setForm(prev => ({ ...prev, [key]: e.target.value }));
+    setErrors(prev => ({ ...prev, [key]: '' }));
+  };
 
-    return (
-        <div style={{ maxWidth: '400px', margin: '40px auto', padding: '20px', background: '#1e1e1e', color: '#fff', borderRadius: '8px' }}>
-            <h2>Регистрация аккаунта</h2>
-            
-            {error && (
-                <div style={{ color: '#ff6b6b', background: 'rgba(255, 107, 107, 0.1)', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>
-                    {error}
-                </div>
-            )}
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <h2>📝 Регистрация</h2>
+        <p className="subtitle">Создайте аккаунт КотоМаркет</p>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div>
-                    <label style={{ display: 'block', marginBottom: '5px' }}>Email:</label>
-                    <input 
-                        type="email" 
-                        value={email} 
-                        onChange={(e) => setEmail(e.target.value)} 
-                        placeholder="Введите ваш email"
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', background: '#2a2a2a', color: '#fff' }}
-                    />
-                </div>
+        {serverErr && (
+          <div className="form-server-error">{serverErr}</div>
+        )}
 
-                <div>
-                    <label style={{ display: 'block', marginBottom: '5px' }}>Пароль:</label>
-                    <input 
-                        type="password" 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
-                        placeholder="Введите пароль"
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', background: '#2a2a2a', color: '#fff' }}
-                    />
-                </div>
-
-                <button 
-                    type="submit" 
-                    disabled={loading}
-                    style={{ padding: '10px', background: '#ffaa00', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', color: '#000' }}
-                >
-                    {loading ? 'Регистрация...' : 'Зарегистрироваться'}
-                </button>
-            </form>
-
-            <p style={{ marginTop: '15px', textAlign: 'center', fontSize: '14px' }}>
-                Уже есть аккаунт? <Link to="/login" style={{ color: '#ffaa00' }}>Войти</Link>
-            </p>
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={set('email')}
+            className={errors.email ? 'error' : ''}
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          />
+          {errors.email && <div className="form-error">{errors.email}</div>}
         </div>
-    );
+
+        <div className="form-group">
+          <label>Пароль</label>
+          <input
+            type="password"
+            placeholder="••••••••"
+            value={form.password}
+            onChange={set('password')}
+            className={errors.password ? 'error' : ''}
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          />
+          {errors.password && <div className="form-error">{errors.password}</div>}
+        </div>
+
+        <button
+          className="form-submit"
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? 'Регистрируем...' : 'Зарегистрироваться'}
+        </button>
+
+        <div className="auth-switch">
+          Уже есть аккаунт? <Link to="/login">Войти</Link>
+        </div>
+      </div>
+    </div>
+  );
 }
